@@ -9,12 +9,20 @@ public Plugin myinfo =
 	name = "CSGOFixes: SourcePawn Edition",
 	author = "Vauff",
 	description = "Various fixes for CS:GO",
-	version = "1.0",
+	version = "1.1",
 	url = "https://github.com/Vauff/CSGOFixes-SP"
 };
 
+char g_sPatchNames[][] = {"ThinkAddFlag", "DeactivateWarning", "InputSpeedModFlashlight"};
+Address g_aPatchedAddresses[sizeof(g_sPatchNames)];
+int g_iPatchedByteCount[sizeof(g_sPatchNames)];
+int g_iPatchedBytes[sizeof(g_sPatchNames)][128]; // Increase this if a PatchBytes value in gamedata exceeds 128
+
 public void OnPluginStart()
 {
+	if (GetEngineVersion() != Engine_CSGO)
+		SetFailState("This plugin only runs on CS:GO!");
+
 	char path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, path, sizeof(path), "gamedata/csgofixes_sp.games.txt");
 
@@ -26,60 +34,67 @@ public void OnPluginStart()
 	if (gameData == INVALID_HANDLE)
 		SetFailState("Can't find csgofixes_sp.games.txt gamedata.");
 
-	char patchNames[][] = {"ThinkAddFlag", "DeactivateWarning", "InputSpeedModFlashlight"};
-
-	for (int i = 0; i < sizeof(patchNames); i++)
+	for (int i = 0; i < sizeof(g_sPatchNames); i++)
 	{
-		// Get the patch name
-		char patch[64];
-		Format(patch, sizeof(patch), patchNames[i]);
+		char patchName[64];
+		Format(patchName, sizeof(patchName), g_sPatchNames[i]);
+		Address addr = GameConfGetAddress(gameData, patchName);
 
-		// Get the address near our patch area
-		Address iAddr = GameConfGetAddress(gameData, patch);
-
-		if (iAddr == Address_Null)
+		if (addr == Address_Null)
 		{
 			CloseHandle(gameData);
-			LogError("%s patch failed: Can't find %s address in gamedata.", patch, patch);
+			LogError("%s patch failed: Can't find %s address in gamedata.", patchName, patchName);
 			continue;
 		}
 
-		// Get the offset from the start of the signature to the start of our patch area.
-		char cappingOffset[64];
-		Format(cappingOffset, sizeof(cappingOffset), "CappingOffset_%s", patch);
-		int iCapOffset = GameConfGetOffset(gameData, cappingOffset);
+		char cappingOffsetName[64];
+		Format(cappingOffsetName, sizeof(cappingOffsetName), "CappingOffset_%s", patchName);
+		int cappingOffset = GameConfGetOffset(gameData, cappingOffsetName);
 
-		if (iCapOffset == -1)
+		if (cappingOffset == -1)
 		{
 			CloseHandle(gameData);
-			LogError("%s patch failed: Can't find %s offset in gamedata.", patch, cappingOffset);
+			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, cappingOffsetName);
 			continue;
 		}
 
-		// Move right in front of the instructions we want to NOP.
-		iAddr += view_as<Address>(iCapOffset);
+		addr += view_as<Address>(cappingOffset);
 
-		// Get how many bytes we want to NOP.
-		char patchBytes[64];
-		Format(patchBytes, sizeof(patchBytes), "PatchBytes_%s", patch);
-		int iPatchRestoreBytes = GameConfGetOffset(gameData, patchBytes);
+		char patchBytesName[64];
+		Format(patchBytesName, sizeof(patchBytesName), "PatchBytes_%s", patchName);
+		int patchBytes = GameConfGetOffset(gameData, patchBytesName);
 
-		if (iPatchRestoreBytes == -1)
+		if (patchBytes == -1)
 		{
 			CloseHandle(gameData);
-			LogError("%s patch failed: Can't find %s offset in gamedata.", patch, patchBytes);
+			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, patchBytesName);
 			continue;
 		}
 
-		for (int j = 0; j < iPatchRestoreBytes; j++)
-		{
-			//PrintToServer("%x: %x", iAddr, LoadFromAddress(iAddr, NumberType_Int8));
+		g_aPatchedAddresses[i] = addr;
+		g_iPatchedByteCount[i] = patchBytes;
 
-			// NOP
-			StoreToAddress(iAddr, 0x90, NumberType_Int8);
-			iAddr++;
+		for (int j = 0; j < patchBytes; j++)
+		{
+			g_iPatchedBytes[i][j] = LoadFromAddress(addr, NumberType_Int8);
+			StoreToAddress(addr, 0x90, NumberType_Int8);
+			addr++;
 		}
 	}
 
 	CloseHandle(gameData);
+}
+
+public void OnPluginEnd()
+{
+	for (int i = 0; i < sizeof(g_aPatchedAddresses); i++)
+	{
+		Address addr = g_aPatchedAddresses[i];
+
+		for (int j = 0; j < g_iPatchedByteCount[i]; j++)
+		{
+			StoreToAddress(addr, g_iPatchedBytes[i][j], NumberType_Int8);
+			addr++;
+		}
+	}
 }
