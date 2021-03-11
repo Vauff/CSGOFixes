@@ -42,7 +42,6 @@ public void OnPluginStart()
 
 		if (addr == Address_Null)
 		{
-			CloseHandle(gameData);
 			LogError("%s patch failed: Can't find %s address in gamedata.", patchName, patchName);
 			continue;
 		}
@@ -53,7 +52,6 @@ public void OnPluginStart()
 
 		if (cappingOffset == -1)
 		{
-			CloseHandle(gameData);
 			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, cappingOffsetName);
 			continue;
 		}
@@ -66,7 +64,6 @@ public void OnPluginStart()
 
 		if (patchBytes == -1)
 		{
-			CloseHandle(gameData);
 			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, patchBytesName);
 			continue;
 		}
