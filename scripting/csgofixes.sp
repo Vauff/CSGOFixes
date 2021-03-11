@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "CSGOFixes: SourcePawn Edition",
 	author = "Vauff",
 	description = "Various fixes for CS:GO",
-	version = "1.1",
+	version = "1.1.1",
 	url = "https://github.com/Vauff/CSGOFixes-SP"
 };
 
