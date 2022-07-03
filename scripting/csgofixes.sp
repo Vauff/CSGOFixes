@@ -10,7 +10,7 @@ public Plugin myinfo =
 	name = "CSGOFixes: SourcePawn Edition",
 	author = "Vauff",
 	description = "Various fixes for CS:GO",
-	version = "1.2",
+	version = "1.2.1",
 	url = "https://github.com/Vauff/CSGOFixes-SP"
 };
 
@@ -31,7 +31,7 @@ public void OnPluginStart()
 	if (!FileExists(path))
 		SetFailState("Can't find csgofixes_sp.games.txt gamedata.");
 
-	Handle gameData = LoadGameConfigFile("csgofixes_sp.games");
+	GameData gameData = LoadGameConfigFile("csgofixes_sp.games");
 	
 	if (gameData == INVALID_HANDLE)
 		SetFailState("Can't find csgofixes_sp.games.txt gamedata.");
@@ -43,7 +43,7 @@ public void OnPluginStart()
 		Format(patchName, sizeof(patchName), g_sPatchNames[i]);
 
 		// Get the location of this patches signature
-		Address addr = GameConfGetAddress(gameData, patchName);
+		Address addr = gameData.GetMemSig(patchName);
 
 		if (addr == Address_Null)
 		{

@@ -4,19 +4,22 @@
 	{
 		"Signatures"
 		{
-			"CGameUI::Think"
+			// Within CGameUI::Think
+			"ThinkAddFlag"
 			{
 				"library"	"server"
 				"windows"	"\x8D\x9F\xD8\x00\x00\x00\x89\x45\xF8\x83\xC8\x10"
 				"linux"		"\x72\x3F\xC7\x44\x24\x04\x10\x00\x00\x00"
 			}
-			"CGameUI::Deactivate"
+			// Within CGameUI::Deactivate
+			"DeactivateWarning"
 			{
 				"library"	"server"
 				"windows"	"\x8B\x45\x08\xBA\x2A\x2A\x2A\x2A\x8B\xCA\x8B\x80\xDC\x00\x00\x00"
 				"linux"		"\x8B\x45\x0C\xB9\x2A\x2A\x2A\x2A\x8B\x90\xE4\x00\x00\x00"
 			}
-			"CMovementSpeedMod::InputSpeedMod"
+			// Within CMovementSpeedMod::InputSpeedMod
+			"InputSpeedModFlashlight"
 			{
 				"library"	"server"
 				"windows"	"\x8B\xCE\xFF\x90\x50\x06\x00\x00\x85\xC0\x74\x0C"
@@ -77,42 +80,6 @@
 			{
 				"windows"	"22"
 				"linux"		"33"
-			}
-		}
-		"Addresses"
-		{
-			"ThinkAddFlag"
-			{
-				"windows"
-				{
-					"signature"	"CGameUI::Think"
-				}
-				"linux"
-				{
-					"signature"	"CGameUI::Think"
-				}
-			}
-			"DeactivateWarning"
-			{
-				"windows"
-				{
-					"signature"	"CGameUI::Deactivate"
-				}
-				"linux"
-				{
-					"signature"	"CGameUI::Deactivate"
-				}
-			}
-			"InputSpeedModFlashlight"
-			{
-				"windows"
-				{
-					"signature"	"CMovementSpeedMod::InputSpeedMod"
-				}
-				"linux"
-				{
-					"signature"	"CMovementSpeedMod::InputSpeedMod"
-				}
 			}
 		}
 	}
