@@ -10,11 +10,11 @@ public Plugin myinfo =
 	name = "CSGOFixes: SourcePawn Edition",
 	author = "Vauff",
 	description = "Various fixes for CS:GO",
-	version = "1.2.1",
+	version = "1.3",
 	url = "https://github.com/Vauff/CSGOFixes-SP"
 };
 
-Handle g_hInputTestActivator;
+Handle g_hInputTestActivator, g_hExplode;
 char g_sPatchNames[][] = {"ThinkAddFlag", "DeactivateWarning", "InputSpeedModFlashlight"};
 Address g_aPatchedAddresses[sizeof(g_sPatchNames)];
 int g_iPatchedByteCount[sizeof(g_sPatchNames)];
@@ -96,8 +96,16 @@ public void OnPluginStart()
 		}
 	}
 
+	g_hExplode = DHookCreate(GameConfGetOffset(gameData, "Explode"), HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, Hook_Explode);
+	DHookAddParam(g_hExplode, HookParamType_ObjectPtr);
+	DHookAddParam(g_hExplode, HookParamType_Int);
+
 	g_hInputTestActivator = DHookCreateFromConf(gameData, "CBaseFilter::InputTestActivator");
+
 	CloseHandle(gameData);
+
+	if (!g_hExplode)
+		LogError("Failed to setup hook for CBaseGrenade::Explode");
 
 	if (!g_hInputTestActivator)
 	{
@@ -107,6 +115,27 @@ public void OnPluginStart()
 
 	if (!DHookEnableDetour(g_hInputTestActivator, false, Detour_InputTestActivator))
 		LogError("Failed to detour CBaseFilter::InputTestActivator");
+}
+
+public void OnEntityCreated(int entity, const char[] classname)
+{
+	// Hook all grenade projectiles that implement CBaseGrenade::Explode
+	if (StrEqual(classname, "hegrenade_projectile") || StrEqual(classname, "breachcharge_projectile") || StrEqual(classname, "bumpmine_projectile"))
+		DHookEntity(g_hExplode, false, entity);
+}
+
+public MRESReturn Hook_Explode(int pThis, DHookParam hParams)
+{
+	int thrower = GetEntPropEnt(pThis, Prop_Send, "m_hThrower");
+
+	// If null thrower (disconnected before explosion), block possible server crash from certain damage filters
+	if (thrower == -1)
+	{
+		RemoveEntity(pThis);
+		return MRES_Supercede;
+	}
+
+	return MRES_Ignored;
 }
 
 public MRESReturn Detour_InputTestActivator(DHookParam hParams)

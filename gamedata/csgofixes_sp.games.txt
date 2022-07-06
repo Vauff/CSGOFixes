@@ -51,6 +51,12 @@
 		}
 		"Offsets"
 		{
+			// CBaseGrenade
+			"Explode"
+			{
+				"windows"	"237"
+				"linux"		"238"
+			}
 			"CappingOffset_ThinkAddFlag"
 			{
 				"windows"	"9"
