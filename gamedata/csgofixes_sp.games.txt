@@ -9,7 +9,7 @@
 			{
 				"library"	"server"
 				"windows"	"\x8D\x9F\xD8\x00\x00\x00\x89\x45\xF8\x83\xC8\x10"
-				"linux"		"\x72\x3F\xC7\x44\x24\x04\x10\x00\x00\x00"
+				"linux"		"\x72\x34\x83\xEC\x08\x6A\x10\x53\xE8"
 			}
 			// Within CGameUI::Deactivate
 			"DeactivateWarning"
@@ -23,13 +23,13 @@
 			{
 				"library"	"server"
 				"windows"	"\x8B\xCE\xFF\x90\x50\x06\x00\x00\x85\xC0\x74\x0C"
-				"linux"		"\x89\x1C\x24\xFF\x90\x54\x06\x00\x00\x85\xC0\x0F\x85\x2B\x01\x00\x00"
+				"linux"		"\x83\xEC\x0C\x53\xFF\x90\x54\x06\x00\x00\x83\xC4\x10\x85\xC0\x0F\x85\x38\x02\x00\x00"
 			}
 			"CBaseFilter::InputTestActivator"
 			{
 				"library"	"server"
 				"windows"	"\x55\x8B\xEC\x83\xEC\x14\x56\x57\x8B\x7D\x08\x8B\xF1\x8B\x06"
-				"linux"		"\x55\x89\xE5\x56\x53\x83\xEC\x10\x8B\x75\x0C\x8B\x5D\x08\x8B\x16"
+				"linux"		"\x55\x89\xE5\x56\x53\x8B\x5D\x08\x8B\x75\x0C\x83\xEC\x04\x8B\x03"
 			}
 		}
 		"Functions"
@@ -60,7 +60,7 @@
 			"CappingOffset_ThinkAddFlag"
 			{
 				"windows"	"9"
-				"linux"		"13"
+				"linux"		"8"
 			}
 			"PatchBytes_ThinkAddFlag"
 			{
@@ -75,17 +75,17 @@
 			"PatchBytes_DeactivateWarning"
 			{
 				"windows"	"48"
-				"linux"		"50"
+				"linux"		"45"
 			}
 			"CappingOffset_InputSpeedModFlashlight"
 			{
 				"windows"	"2"
-				"linux"		"3"
+				"linux"		"4"
 			}
 			"PatchBytes_InputSpeedModFlashlight"
 			{
 				"windows"	"22"
-				"linux"		"33"
+				"linux"		"31"
 			}
 		}
 	}
