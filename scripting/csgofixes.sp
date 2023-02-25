@@ -8,7 +8,7 @@
 public Plugin myinfo =
 {
 	name = "CSGOFixes: SourcePawn Edition",
-	author = "Vauff",
+	author = "Vauff + xen",
 	description = "Various fixes for CS:GO",
 	version = "1.3",
 	url = "https://github.com/Vauff/CSGOFixes-SP"
@@ -21,8 +21,11 @@ Handle g_hExplode;
 Handle g_hPhysicsTouchTriggers;
 Handle g_hUpdateOnRemove;
 Handle g_hGameStringPool_Remove;
+
 char g_sPatchNames[][] = {"ThinkAddFlag", "DeactivateWarning", "InputSpeedModFlashlight"};
+
 Address g_aPatchedAddresses[sizeof(g_sPatchNames)];
+
 int g_iPatchedByteCount[sizeof(g_sPatchNames)];
 int g_iPatchedBytes[sizeof(g_sPatchNames)][128]; // Increase this if a PatchBytes value in gamedata exceeds 128
 int g_iSolidFlags;
@@ -43,133 +46,30 @@ public void OnPluginStart()
 	if (gameData == INVALID_HANDLE)
 		SetFailState("Can't find csgofixes_sp.games.txt gamedata.");
 
-	// Iterate our patch names (these are dependent on what's in gamedata)
-	for (int i = 0; i < sizeof(g_sPatchNames); i++)
-	{
-		char patchName[64];
-		Format(patchName, sizeof(patchName), g_sPatchNames[i]);
+	ApplyPatches(gameData);
 
-		// Get the location of this patches signature
-		Address addr = gameData.GetMemSig(patchName);
+	SetupDetour(gameData, g_hInputTestActivator, "CBaseFilter::InputTestActivator", Detour_InputTestActivator, false);
+	SetupDetour(gameData, g_hPhysicsTouchTriggers, "CBaseEntity::PhysicsTouchTriggers", Detour_PhysicsTouchTriggers, false);
+	SetupDetour(gameData, g_hUpdateOnRemove, "CBaseEntity::UpdateOnRemove", Detour_UpdateOnRemove, false);
 
-		if (addr == Address_Null)
-		{
-			LogError("%s patch failed: Can't find %s address in gamedata.", patchName, patchName);
-			continue;
-		}
-
-		char cappingOffsetName[64];
-		Format(cappingOffsetName, sizeof(cappingOffsetName), "CappingOffset_%s", patchName);
-
-		// Get how many bytes we should move forward from the signature location before starting patching
-		int cappingOffset = GameConfGetOffset(gameData, cappingOffsetName);
-
-		if (cappingOffset == -1)
-		{
-			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, cappingOffsetName);
-			continue;
-		}
-
-		// Get patch location
-		addr += view_as<Address>(cappingOffset);
-
-		char patchBytesName[64];
-		Format(patchBytesName, sizeof(patchBytesName), "PatchBytes_%s", patchName);
-
-		// Find how many bytes after the patch location should be NOP'd
-		int patchBytes = GameConfGetOffset(gameData, patchBytesName);
-
-		if (patchBytes == -1)
-		{
-			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, patchBytesName);
-			continue;
-		}
-
-		// Store this patches address and byte count as it's being applied for unpatching on plugin unload
-		g_aPatchedAddresses[i] = addr;
-		g_iPatchedByteCount[i] = patchBytes;
-
-		// Iterate each byte we need to patch
-		for (int j = 0; j < patchBytes; j++)
-		{
-			// Store the original byte here for unpatching on plugin unload
-			g_iPatchedBytes[i][j] = LoadFromAddress(addr, NumberType_Int8);
-
-			// NOP this byte
-			StoreToAddress(addr, 0x90, NumberType_Int8);
-
-			// Move on to next byte
-			addr++;
-		}
-	}
-
-	// CBaseGrenade::Explode
 	g_hExplode = DHookCreate(GameConfGetOffset(gameData, "Explode"), HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, Hook_Explode);
 	DHookAddParam(g_hExplode, HookParamType_ObjectPtr);
 	DHookAddParam(g_hExplode, HookParamType_Int);
 	if (!g_hExplode)
-	{
-		CloseHandle(gameData);
-		SetFailState("Failed to setup hook for CBaseGrenade::Explode");
-	}
+		LogError("Failed to setup hook for CBaseGrenade::Explode");
 
-	// CBaseFilter::InputTestActivator
-	g_hInputTestActivator = DHookCreateFromConf(gameData, "CBaseFilter::InputTestActivator");
-	if (!DHookEnableDetour(g_hInputTestActivator, false, Detour_InputTestActivator))
-	{
-		CloseHandle(gameData);
-		SetFailState("Failed to detour CBaseFilter::InputTestActivator");
-	}
-
-	if (!g_hInputTestActivator)
-	{
-		CloseHandle(gameData);
-		SetFailState("Failed to setup detour for CBaseFilter::InputTestActivator");
-	}
-
-	// CBaseEntity::PhysicsTouchTriggers
-	g_hPhysicsTouchTriggers = DHookCreateFromConf(gameData, "CBaseEntity::PhysicsTouchTriggers");
-	if(!g_hPhysicsTouchTriggers)
-	{
-		CloseHandle(gameData);
-		SetFailState("Failed to setup detour for CBaseEntity::PhysicsTouchTriggers");
-	}
-
-	if(!DHookEnableDetour(g_hPhysicsTouchTriggers, false, Detour_PhysicsTouchTriggers))
-	{
-		CloseHandle(gameData);
-		SetFailState("Failed to detour CBaseEntity::PhysicsTouchTriggers");
-	}
-
-	// CBaseEntity::UpdateOnRemove
-	g_hUpdateOnRemove = DHookCreateFromConf(gameData, "CBaseEntity::UpdateOnRemove");
-	if(!g_hUpdateOnRemove)
-	{
-		CloseHandle(gameData);
-		SetFailState("Failed to setup detour for CBaseEntity::UpdateOnRemove");
-	}
-
-	if(!DHookEnableDetour(g_hUpdateOnRemove, false, Detour_UpdateOnRemove))
-	{
-		CloseHandle(gameData);
-		SetFailState("Failed to detour CBaseEntity::UpdateOnRemove");
-	}
-
-	// CGameStringPool::Remove
 	StartPrepSDKCall(SDKCall_Static);
 	if (!PrepSDKCall_SetFromConf(gameData, SDKConf_Signature, "CGameStringPool::Remove"))
 	{
+		LogError("Failed to get CGameStringPool::Remove");
 		CloseHandle(gameData);
-		SetFailState("Failed to get CGameStringPool::Remove");
+		return;
 	}
 
 	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 	g_hGameStringPool_Remove = EndPrepSDKCall();
 	if (!g_hGameStringPool_Remove)
-	{
-		CloseHandle(gameData);
-		SetFailState("Unable to prepare SDKCall for CGameStringPool::Remove");
-	}
+		LogError("Unable to prepare SDKCall for CGameStringPool::Remove");
 
 	CloseHandle(gameData);
 }
@@ -241,6 +141,83 @@ public MRESReturn Detour_UpdateOnRemove(int iEntity)
 		SDKCall(g_hGameStringPool_Remove, szScriptId);
 
 	return MRES_Handled;
+}
+
+public void SetupDetour(GameData gameData, Handle detour, char[] name, DHookCallback callback, bool post)
+{
+	detour = DHookCreateFromConf(gameData, name);
+
+	if (!detour)
+	{
+		LogError("Failed to setup detour for %s", name);
+		return;
+	}
+
+	if (!DHookEnableDetour(detour, post, callback))
+		LogError("Failed to detour %s", name);
+}
+
+public void ApplyPatches(GameData gameData)
+{
+	// Iterate our patch names (these are dependent on what's in gamedata)
+	for (int i = 0; i < sizeof(g_sPatchNames); i++)
+	{
+		char patchName[64];
+		Format(patchName, sizeof(patchName), g_sPatchNames[i]);
+
+		// Get the location of this patches signature
+		Address addr = gameData.GetMemSig(patchName);
+
+		if (addr == Address_Null)
+		{
+			LogError("%s patch failed: Can't find %s address in gamedata.", patchName, patchName);
+			continue;
+		}
+
+		char cappingOffsetName[64];
+		Format(cappingOffsetName, sizeof(cappingOffsetName), "CappingOffset_%s", patchName);
+
+		// Get how many bytes we should move forward from the signature location before starting patching
+		int cappingOffset = GameConfGetOffset(gameData, cappingOffsetName);
+
+		if (cappingOffset == -1)
+		{
+			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, cappingOffsetName);
+			continue;
+		}
+
+		// Get patch location
+		addr += view_as<Address>(cappingOffset);
+
+		char patchBytesName[64];
+		Format(patchBytesName, sizeof(patchBytesName), "PatchBytes_%s", patchName);
+
+		// Find how many bytes after the patch location should be NOP'd
+		int patchBytes = GameConfGetOffset(gameData, patchBytesName);
+
+		if (patchBytes == -1)
+		{
+			LogError("%s patch failed: Can't find %s offset in gamedata.", patchName, patchBytesName);
+			continue;
+		}
+
+		// Store this patches address and byte count as it's being applied for unpatching on plugin unload
+		g_aPatchedAddresses[i] = addr;
+		g_iPatchedByteCount[i] = patchBytes;
+
+		// Iterate each byte we need to patch
+		for (int j = 0; j < patchBytes; j++)
+		{
+			// Store the original byte here for unpatching on plugin unload
+			g_iPatchedBytes[i][j] = LoadFromAddress(addr, NumberType_Int8);
+
+			// NOP this byte
+			StoreToAddress(addr, 0x90, NumberType_Int8);
+
+			// Move on to next byte
+			addr++;
+		}
+	}
 }
 
 public void OnPluginEnd()
