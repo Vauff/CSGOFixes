@@ -31,6 +31,27 @@
 				"windows"	"\x55\x8B\xEC\x83\xEC\x14\x56\x57\x8B\x7D\x08\x8B\xF1\x8B\x06"
 				"linux"		"\x55\x89\xE5\x56\x53\x8B\x5D\x08\x8B\x75\x0C\x83\xEC\x04\x8B\x03"
 			}
+			// Contains string "Inserted %s with no model"
+			"CBaseEntity::PhysicsTouchTriggers"
+			{
+				"library"		"server"
+				"linux"			"\x55\x89\xE5\x57\x56\x53\x83\xEC\x2C\x8B\x55\x08\x8B\x7D\x0C\x8B\x5A\x24"
+				"windows"		"\x55\x8B\xEC\x83\xEC\x0C\x57\x8B\xF9\x8B\x47\x1C"
+			}
+			// Contains string "Warning: Deleting orphaned child of"
+			"CBaseEntity::UpdateOnRemove"
+			{
+				"library"	"server"
+				"linux"		"\x55\x89\xE5\x57\x56\x53\x83\xEC\x2C\x8B\x7D\x08\xC6\x05\x2A\x2A\x2A\x2A\x01"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x1C\x53\x56\x8B\xF1\x57\x8B\x06\xFF\x90\xC0\x01\x00\x00"
+			}
+			// This is only ever called twice from the above function
+			"CGameStringPool::Remove"
+			{
+				"library"	"server"
+				"linux"		"\x55\x89\xE5\x57\x56\x53\x83\xEC\x2C\x8B\x45\x08\x0F\xB7\x1D\x2A\x2A\x2A\x2A"
+				"windows"	"\x55\x8B\xEC\x56\x8D\x45\x08"
+			}
 		}
 		"Functions"
 		{
@@ -47,6 +68,27 @@
 						"type"	"objectptr"
 					}
 				}
+			}
+			"CBaseEntity::PhysicsTouchTriggers"
+			{
+				"signature"		"CBaseEntity::PhysicsTouchTriggers"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"entity"
+				"arguments"
+				{
+					"pPrevAbsOrigin"
+					{
+						"type"	"vectorptr"
+					}
+				}
+			}
+			"CBaseEntity::UpdateOnRemove"
+			{
+				"signature"		"CBaseEntity::UpdateOnRemove"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"entity"
 			}
 		}
 		"Offsets"

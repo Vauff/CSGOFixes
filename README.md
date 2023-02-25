@@ -6,6 +6,8 @@ A partial SourcePawn implementation of CSGOFixes, contains the following CS:GO f
 - Fixes player_speedmod from disabling players flashlights by removing the `FlashlightTurnOff()` call ([Reference code](https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/game/server/player.cpp#L8165))
 - Fixes the filter TestActivator input crashing the server by hooking the function and blocking execution if `inputdata.pActivator` is null ([Reference code](https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/game/server/filters.cpp#L65))
 - Fixes grenade explosions where the thrower left before explosion crashing the server if tested against numerous possible damage filters that lack null attacker checks
+- Fixes parented triggers firing OnStartTouch every tick while touched, this also fixes the well-known "stack damage" bug.
+- Forces all entities (not just templated ones) to delete their script handle if it exists, thus mitigating a game stringtable leak.
 
 ## Credits
 - BotoX: Creating the original [CSSFixes](https://git.botox.bz/CSSZombieEscape/sm-ext-CSSFixes), where some of these fixes were originally made
