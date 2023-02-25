@@ -14,11 +14,18 @@ public Plugin myinfo =
 	url = "https://github.com/Vauff/CSGOFixes-SP"
 };
 
-Handle g_hInputTestActivator, g_hExplode;
+#define FSOLID_TRIGGER 0x0008
+
+Handle g_hInputTestActivator;
+Handle g_hExplode;
+Handle g_hPhysicsTouchTriggers;
+Handle g_hUpdateOnRemove;
+Handle g_hGameStringPool_Remove;
 char g_sPatchNames[][] = {"ThinkAddFlag", "DeactivateWarning", "InputSpeedModFlashlight"};
 Address g_aPatchedAddresses[sizeof(g_sPatchNames)];
 int g_iPatchedByteCount[sizeof(g_sPatchNames)];
 int g_iPatchedBytes[sizeof(g_sPatchNames)][128]; // Increase this if a PatchBytes value in gamedata exceeds 128
+int g_iSolidFlags;
 
 public void OnPluginStart()
 {
@@ -96,25 +103,80 @@ public void OnPluginStart()
 		}
 	}
 
+	// CBaseGrenade::Explode
 	g_hExplode = DHookCreate(GameConfGetOffset(gameData, "Explode"), HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, Hook_Explode);
 	DHookAddParam(g_hExplode, HookParamType_ObjectPtr);
 	DHookAddParam(g_hExplode, HookParamType_Int);
-
-	g_hInputTestActivator = DHookCreateFromConf(gameData, "CBaseFilter::InputTestActivator");
-
-	CloseHandle(gameData);
-
 	if (!g_hExplode)
-		LogError("Failed to setup hook for CBaseGrenade::Explode");
+	{
+		CloseHandle(gameData);
+		SetFailState("Failed to setup hook for CBaseGrenade::Explode");
+	}
+
+	// CBaseFilter::InputTestActivator
+	g_hInputTestActivator = DHookCreateFromConf(gameData, "CBaseFilter::InputTestActivator");
+	if (!DHookEnableDetour(g_hInputTestActivator, false, Detour_InputTestActivator))
+	{
+		CloseHandle(gameData);
+		SetFailState("Failed to detour CBaseFilter::InputTestActivator");
+	}
 
 	if (!g_hInputTestActivator)
 	{
-		LogError("Failed to setup detour for CBaseFilter::InputTestActivator");
-		return;
+		CloseHandle(gameData);
+		SetFailState("Failed to setup detour for CBaseFilter::InputTestActivator");
 	}
 
-	if (!DHookEnableDetour(g_hInputTestActivator, false, Detour_InputTestActivator))
-		LogError("Failed to detour CBaseFilter::InputTestActivator");
+	// CBaseEntity::PhysicsTouchTriggers
+	g_hPhysicsTouchTriggers = DHookCreateFromConf(gameData, "CBaseEntity::PhysicsTouchTriggers");
+	if(!g_hPhysicsTouchTriggers)
+	{
+		CloseHandle(gameData);
+		SetFailState("Failed to setup detour for CBaseEntity::PhysicsTouchTriggers");
+	}
+
+	if(!DHookEnableDetour(g_hPhysicsTouchTriggers, false, Detour_PhysicsTouchTriggers))
+	{
+		CloseHandle(gameData);
+		SetFailState("Failed to detour CBaseEntity::PhysicsTouchTriggers");
+	}
+
+	// CBaseEntity::UpdateOnRemove
+	g_hUpdateOnRemove = DHookCreateFromConf(gameData, "CBaseEntity::UpdateOnRemove");
+	if(!g_hUpdateOnRemove)
+	{
+		CloseHandle(gameData);
+		SetFailState("Failed to setup detour for CBaseEntity::UpdateOnRemove");
+	}
+
+	if(!DHookEnableDetour(g_hUpdateOnRemove, false, Detour_UpdateOnRemove))
+	{
+		CloseHandle(gameData);
+		SetFailState("Failed to detour CBaseEntity::UpdateOnRemove");
+	}
+
+	// CGameStringPool::Remove
+	StartPrepSDKCall(SDKCall_Static);
+	if (!PrepSDKCall_SetFromConf(gameData, SDKConf_Signature, "CGameStringPool::Remove"))
+	{
+		CloseHandle(gameData);
+		SetFailState("Failed to get CGameStringPool::Remove");
+	}
+
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+	g_hGameStringPool_Remove = EndPrepSDKCall();
+	if (!g_hGameStringPool_Remove)
+	{
+		CloseHandle(gameData);
+		SetFailState("Unable to prepare SDKCall for CGameStringPool::Remove");
+	}
+
+	CloseHandle(gameData);
+}
+
+public void OnMapStart()
+{
+	g_iSolidFlags = FindDataMapInfo(0, "m_usSolidFlags");
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -147,6 +209,38 @@ public MRESReturn Detour_InputTestActivator(DHookParam hParams)
 		return MRES_Supercede;
 
 	return MRES_Ignored;
+}
+
+public MRESReturn Detour_PhysicsTouchTriggers(int iEntity)
+{
+	// This function does two things as far as triggers are concerned, invalidate its touchstamp and calls SV_TriggerMoved.
+	// SV_TriggerMoved is what checks if the moving trigger (hence the name) is touching anything.
+	// But valve for whatever reason ifdef'd out a crucial function that actually performs the ray checks on dedicated servers.
+	// As a result, the touchlink never gets updated on the trigger's side, which ends up deleting the touchlink.
+	// And so, the player touches the trigger on the very next tick through SV_SolidMoved (which functions properly), and the cycle repeats...
+	if (!IsValidEntity(iEntity))
+		return MRES_Ignored;
+
+	if (GetEntData(iEntity, g_iSolidFlags) & FSOLID_TRIGGER)
+		return MRES_Supercede;
+
+	return MRES_Ignored;
+}
+
+public MRESReturn Detour_UpdateOnRemove(int iEntity)
+{
+	// This function deletes both the entity's targetname and script handle from the game stringtable, but only if it was part of a template with name fixup.
+	// The intention was to prevent stringtable leaks from fixed up entity names since they're unique, but script handles are always unique regardless.
+	// So there's really no reason not to unconditionally delete script handles when they're no longer needed.
+	if (!IsValidEntity(iEntity) || (1 <= iEntity <= MaxClients))
+		return MRES_Ignored;
+
+	char szScriptId[64];
+
+	if (GetEntPropString(iEntity, Prop_Data, "m_iszScriptId", szScriptId, sizeof(szScriptId)))
+		SDKCall(g_hGameStringPool_Remove, szScriptId);
+
+	return MRES_Handled;
 }
 
 public void OnPluginEnd()
