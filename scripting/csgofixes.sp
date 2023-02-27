@@ -16,16 +16,13 @@ public Plugin myinfo =
 
 #define FSOLID_TRIGGER 0x0008
 
-Handle g_hInputTestActivator;
-Handle g_hExplode;
-Handle g_hPhysicsTouchTriggers;
-Handle g_hUpdateOnRemove;
+DynamicDetour g_hInputTestActivator, g_hPhysicsTouchTriggers, g_hUpdateOnRemove;
+DynamicHook g_hExplode;
 Handle g_hGameStringPool_Remove;
 
 char g_sPatchNames[][] = {"ThinkAddFlag", "DeactivateWarning", "InputSpeedModFlashlight"};
 
 Address g_aPatchedAddresses[sizeof(g_sPatchNames)];
-
 int g_iPatchedByteCount[sizeof(g_sPatchNames)];
 int g_iPatchedBytes[sizeof(g_sPatchNames)][128]; // Increase this if a PatchBytes value in gamedata exceeds 128
 int g_iSolidFlags;
@@ -48,11 +45,11 @@ public void OnPluginStart()
 
 	ApplyPatches(gameData);
 
-	SetupDetour(gameData, g_hInputTestActivator, "CBaseFilter::InputTestActivator", Detour_InputTestActivator, false);
-	SetupDetour(gameData, g_hPhysicsTouchTriggers, "CBaseEntity::PhysicsTouchTriggers", Detour_PhysicsTouchTriggers, false);
-	SetupDetour(gameData, g_hUpdateOnRemove, "CBaseEntity::UpdateOnRemove", Detour_UpdateOnRemove, false);
+	SetupDetour(gameData, g_hInputTestActivator, "CBaseFilter::InputTestActivator", Detour_InputTestActivator, Hook_Pre);
+	SetupDetour(gameData, g_hPhysicsTouchTriggers, "CBaseEntity::PhysicsTouchTriggers", Detour_PhysicsTouchTriggers, Hook_Pre);
+	SetupDetour(gameData, g_hUpdateOnRemove, "CBaseEntity::UpdateOnRemove", Detour_UpdateOnRemove, Hook_Pre);
 
-	g_hExplode = DHookCreate(GameConfGetOffset(gameData, "Explode"), HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, Hook_Explode);
+	g_hExplode = DHookCreate(gameData.GetOffset("Explode"), HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, Hook_Explode);
 	DHookAddParam(g_hExplode, HookParamType_ObjectPtr);
 	DHookAddParam(g_hExplode, HookParamType_Int);
 	if (!g_hExplode)
@@ -62,7 +59,7 @@ public void OnPluginStart()
 	if (!PrepSDKCall_SetFromConf(gameData, SDKConf_Signature, "CGameStringPool::Remove"))
 	{
 		LogError("Failed to get CGameStringPool::Remove");
-		CloseHandle(gameData);
+		delete gameData;
 		return;
 	}
 
@@ -71,7 +68,7 @@ public void OnPluginStart()
 	if (!g_hGameStringPool_Remove)
 		LogError("Unable to prepare SDKCall for CGameStringPool::Remove");
 
-	CloseHandle(gameData);
+	delete gameData;
 }
 
 public void OnMapStart()
@@ -86,7 +83,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 		DHookEntity(g_hExplode, false, entity);
 }
 
-public MRESReturn Hook_Explode(int pThis, DHookParam hParams)
+MRESReturn Hook_Explode(int pThis, DHookParam hParams)
 {
 	int thrower = GetEntPropEnt(pThis, Prop_Send, "m_hThrower");
 
@@ -100,7 +97,7 @@ public MRESReturn Hook_Explode(int pThis, DHookParam hParams)
 	return MRES_Ignored;
 }
 
-public MRESReturn Detour_InputTestActivator(DHookParam hParams)
+MRESReturn Detour_InputTestActivator(DHookParam hParams)
 {
 	int pActivator = DHookGetParamObjectPtrVar(hParams, 1, 0, ObjectValueType_CBaseEntityPtr);
 
@@ -111,7 +108,7 @@ public MRESReturn Detour_InputTestActivator(DHookParam hParams)
 	return MRES_Ignored;
 }
 
-public MRESReturn Detour_PhysicsTouchTriggers(int iEntity)
+MRESReturn Detour_PhysicsTouchTriggers(int iEntity)
 {
 	// This function does two things as far as triggers are concerned, invalidate its touchstamp and calls SV_TriggerMoved.
 	// SV_TriggerMoved is what checks if the moving trigger (hence the name) is touching anything.
@@ -127,7 +124,7 @@ public MRESReturn Detour_PhysicsTouchTriggers(int iEntity)
 	return MRES_Ignored;
 }
 
-public MRESReturn Detour_UpdateOnRemove(int iEntity)
+MRESReturn Detour_UpdateOnRemove(int iEntity)
 {
 	// This function deletes both the entity's targetname and script handle from the game stringtable, but only if it was part of a template with name fixup.
 	// The intention was to prevent stringtable leaks from fixed up entity names since they're unique, but script handles are always unique regardless.
@@ -143,9 +140,9 @@ public MRESReturn Detour_UpdateOnRemove(int iEntity)
 	return MRES_Handled;
 }
 
-public void SetupDetour(GameData gameData, Handle detour, char[] name, DHookCallback callback, bool post)
+void SetupDetour(GameData gameData, DynamicDetour detour, char[] name, DHookCallback callback, HookMode mode)
 {
-	detour = DHookCreateFromConf(gameData, name);
+	detour = DynamicDetour.FromConf(gameData, name);
 
 	if (!detour)
 	{
@@ -153,11 +150,11 @@ public void SetupDetour(GameData gameData, Handle detour, char[] name, DHookCall
 		return;
 	}
 
-	if (!DHookEnableDetour(detour, post, callback))
+	if (!detour.Enable(mode, callback))
 		LogError("Failed to detour %s", name);
 }
 
-public void ApplyPatches(GameData gameData)
+void ApplyPatches(GameData gameData)
 {
 	// Iterate our patch names (these are dependent on what's in gamedata)
 	for (int i = 0; i < sizeof(g_sPatchNames); i++)
@@ -178,7 +175,7 @@ public void ApplyPatches(GameData gameData)
 		Format(cappingOffsetName, sizeof(cappingOffsetName), "CappingOffset_%s", patchName);
 
 		// Get how many bytes we should move forward from the signature location before starting patching
-		int cappingOffset = GameConfGetOffset(gameData, cappingOffsetName);
+		int cappingOffset = gameData.GetOffset(cappingOffsetName);
 
 		if (cappingOffset == -1)
 		{
@@ -193,7 +190,7 @@ public void ApplyPatches(GameData gameData)
 		Format(patchBytesName, sizeof(patchBytesName), "PatchBytes_%s", patchName);
 
 		// Find how many bytes after the patch location should be NOP'd
-		int patchBytes = GameConfGetOffset(gameData, patchBytesName);
+		int patchBytes = gameData.GetOffset(patchBytesName);
 
 		if (patchBytes == -1)
 		{
