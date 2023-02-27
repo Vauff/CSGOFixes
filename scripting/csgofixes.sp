@@ -49,9 +49,7 @@ public void OnPluginStart()
 	SetupDetour(gameData, g_hPhysicsTouchTriggers, "CBaseEntity::PhysicsTouchTriggers", Detour_PhysicsTouchTriggers, Hook_Pre);
 	SetupDetour(gameData, g_hUpdateOnRemove, "CBaseEntity::UpdateOnRemove", Detour_UpdateOnRemove, Hook_Pre);
 
-	g_hExplode = DHookCreate(gameData.GetOffset("Explode"), HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, Hook_Explode);
-	DHookAddParam(g_hExplode, HookParamType_ObjectPtr);
-	DHookAddParam(g_hExplode, HookParamType_Int);
+	g_hExplode = DynamicHook.FromConf(gameData, "CBaseGrenade::Explode");
 	if (!g_hExplode)
 		LogError("Failed to setup hook for CBaseGrenade::Explode");
 
@@ -80,7 +78,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	// Hook all grenade projectiles that implement CBaseGrenade::Explode
 	if (StrEqual(classname, "hegrenade_projectile") || StrEqual(classname, "breachcharge_projectile") || StrEqual(classname, "bumpmine_projectile"))
-		DHookEntity(g_hExplode, false, entity);
+		g_hExplode.HookEntity(Hook_Pre, entity, Hook_Explode);
 }
 
 MRESReturn Hook_Explode(int pThis, DHookParam hParams)
@@ -99,7 +97,7 @@ MRESReturn Hook_Explode(int pThis, DHookParam hParams)
 
 MRESReturn Detour_InputTestActivator(DHookParam hParams)
 {
-	int pActivator = DHookGetParamObjectPtrVar(hParams, 1, 0, ObjectValueType_CBaseEntityPtr);
+	int pActivator = hParams.GetObjectVar(1, 0, ObjectValueType_CBaseEntityPtr);
 
 	// If null activator, block the real function from executing and crashing the server
 	if (pActivator == -1)
