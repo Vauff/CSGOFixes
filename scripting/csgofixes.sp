@@ -7,11 +7,11 @@
 
 public Plugin myinfo =
 {
-	name = "CSGOFixes: SourcePawn Edition",
+	name = "CSGOFixes",
 	author = "Vauff + xen",
 	description = "Various fixes for CS:GO",
 	version = "1.3",
-	url = "https://github.com/Vauff/CSGOFixes-SP"
+	url = "https://github.com/Vauff/CSGOFixes"
 };
 
 #define FSOLID_TRIGGER 0x0008
@@ -36,15 +36,15 @@ public void OnPluginStart()
 		SetFailState("This plugin only runs on CS:GO!");
 
 	char path[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, path, sizeof(path), "gamedata/csgofixes_sp.games.txt");
+	BuildPath(Path_SM, path, sizeof(path), "gamedata/csgofixes.games.txt");
 
 	if (!FileExists(path))
-		SetFailState("Can't find csgofixes_sp.games.txt gamedata.");
+		SetFailState("Can't find csgofixes.games.txt gamedata.");
 
-	GameData gameData = LoadGameConfigFile("csgofixes_sp.games");
+	GameData gameData = LoadGameConfigFile("csgofixes.games");
 	
 	if (gameData == INVALID_HANDLE)
-		SetFailState("Can't find csgofixes_sp.games.txt gamedata.");
+		SetFailState("Can't find csgofixes.games.txt gamedata.");
 
 	ApplyPatches(gameData);
 

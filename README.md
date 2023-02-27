@@ -1,5 +1,5 @@
-# CSGOFixes-SP
-A partial SourcePawn implementation of CSGOFixes, contains the following CS:GO fixes:
+# CSGOFixes
+A collection of various fixes for CS:GO, originally based on the [CSSFixes](https://git.botox.bz/CSSZombieEscape/sm-ext-CSSFixes) extension. Contains the following fixes:
 
 - Re-enables lag compensation inside of a game_ui by stopping the FL_ONTRAIN flag from being added ([Reference code](https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/game/server/game_ui.cpp#L292))
 - Fixes the game_ui Deactivate input crashing the server with a null activator by removing an incorrectly implemented warning message ([Reference code](https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/game/server/game_ui.cpp#L173))
