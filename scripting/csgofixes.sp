@@ -16,11 +16,11 @@ public Plugin myinfo =
 
 #define FSOLID_TRIGGER 0x0008
 
-DynamicDetour g_hInputTestActivator, g_hPhysicsTouchTriggers, g_hUpdateOnRemove;
+DynamicDetour g_hInputTestActivator, g_hDeactivate, g_hPhysicsTouchTriggers, g_hUpdateOnRemove;
 DynamicHook g_hExplode;
 Handle g_hGameStringPool_Remove;
 
-char g_sPatchNames[][] = {"ThinkAddFlag", "DeactivateWarning", "InputSpeedModFlashlight"};
+char g_sPatchNames[][] = {"ThinkAddFlag", "InputSpeedModFlashlight"};
 
 Address g_aPatchedAddresses[sizeof(g_sPatchNames)];
 int g_iPatchedByteCount[sizeof(g_sPatchNames)];
@@ -46,6 +46,7 @@ public void OnPluginStart()
 	ApplyPatches(gameData);
 
 	SetupDetour(gameData, g_hInputTestActivator, "CBaseFilter::InputTestActivator", Detour_InputTestActivator, Hook_Pre);
+	SetupDetour(gameData, g_hDeactivate, "CGameUI::Deactivate", Detour_Deactivate, Hook_Pre);
 	SetupDetour(gameData, g_hPhysicsTouchTriggers, "CBaseEntity::PhysicsTouchTriggers", Detour_PhysicsTouchTriggers, Hook_Pre);
 	SetupDetour(gameData, g_hUpdateOnRemove, "CBaseEntity::UpdateOnRemove", Detour_UpdateOnRemove, Hook_Pre);
 
@@ -101,6 +102,15 @@ MRESReturn Detour_InputTestActivator(DHookParam hParams)
 
 	// If null activator, block the real function from executing and crashing the server
 	if (pActivator == -1)
+		return MRES_Supercede;
+
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_Deactivate(DHookParam hParams)
+{
+	// If null activator, block the real function from executing and crashing the server
+	if (hParams.IsNull(1))
 		return MRES_Supercede;
 
 	return MRES_Ignored;

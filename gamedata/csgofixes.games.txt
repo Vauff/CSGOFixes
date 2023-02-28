@@ -11,13 +11,6 @@
 				"windows"	"\x8D\x9F\xD8\x00\x00\x00\x89\x45\xF8\x83\xC8\x10"
 				"linux"		"\x72\x34\x83\xEC\x08\x6A\x10\x53\xE8"
 			}
-			// Within CGameUI::Deactivate
-			"DeactivateWarning"
-			{
-				"library"	"server"
-				"windows"	"\x8B\x45\x08\xBA\x2A\x2A\x2A\x2A\x8B\xCA\x8B\x80\xDC\x00\x00\x00"
-				"linux"		"\x8B\x45\x0C\xB9\x2A\x2A\x2A\x2A\x8B\x90\xE4\x00\x00\x00"
-			}
 			// Within CMovementSpeedMod::InputSpeedMod
 			"InputSpeedModFlashlight"
 			{
@@ -31,6 +24,13 @@
 				"library"	"server"
 				"windows"	"\x55\x8B\xEC\x83\xEC\x14\x56\x57\x8B\x7D\x08\x8B\xF1\x8B\x06"
 				"linux"		"\x55\x89\xE5\x56\x53\x8B\x5D\x08\x8B\x75\x0C\x83\xEC\x04\x8B\x03"
+			}
+			// Contains string "%s Deactivate(): I have no player when called by %s!"
+			"CGameUI::Deactivate"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x14\x53\x56\x8B\xF1\x57\x8B\x8E\x50\x05\x00\x00"
+				"linux"		"\x55\x89\xE5\x57\x56\x53\x83\xEC\x4C\x8B\x5D\x08\x8B\x93\x68\x05\x00\x00"
 			}
 			// Contains string "Inserted %s with no model"
 			"CBaseEntity::PhysicsTouchTriggers"
@@ -65,6 +65,20 @@
 				"arguments"
 				{
 					"inputdata"
+					{
+						"type"	"objectptr"
+					}
+				}
+			}
+			"CGameUI::Deactivate"
+			{
+				"signature"	"CGameUI::Deactivate"
+				"callconv"	"thiscall"
+				"return"	"void"
+				"this"		"ignore"
+				"arguments"
+				{
+					"pActivator"
 					{
 						"type"	"objectptr"
 					}
@@ -126,16 +140,6 @@
 			{
 				"windows"	"3"
 				"linux"		"5"
-			}
-			"CappingOffset_DeactivateWarning"
-			{
-				"windows"	"0"
-				"linux"		"0"
-			}
-			"PatchBytes_DeactivateWarning"
-			{
-				"windows"	"48"
-				"linux"		"45"
 			}
 			"CappingOffset_InputSpeedModFlashlight"
 			{
