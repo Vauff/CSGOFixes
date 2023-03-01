@@ -75,12 +75,12 @@
 				"signature"	"CGameUI::Deactivate"
 				"callconv"	"thiscall"
 				"return"	"void"
-				"this"		"ignore"
+				"this"		"address"
 				"arguments"
 				{
 					"pActivator"
 					{
-						"type"	"objectptr"
+						"type"	"int"
 					}
 				}
 			}

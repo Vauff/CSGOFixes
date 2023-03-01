@@ -107,11 +107,16 @@ MRESReturn Detour_InputTestActivator(DHookParam hParams)
 	return MRES_Ignored;
 }
 
-MRESReturn Detour_Deactivate(DHookParam hParams)
+MRESReturn Detour_Deactivate(Address pThis, DHookParam hParams)
 {
-	// If null activator, block the real function from executing and crashing the server
-	if (hParams.IsNull(1))
-		return MRES_Supercede;
+	Address pActivator = hParams.Get(1);
+
+	// If null activator, fake activator as !self to prevent a possible server crash
+	if (pActivator == Address_Null)
+	{
+		hParams.Set(1, pThis);
+		return MRES_ChangedHandled;
+	}
 
 	return MRES_Ignored;
 }
