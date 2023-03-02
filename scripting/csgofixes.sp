@@ -10,13 +10,13 @@ public Plugin myinfo =
 	name = "CSGOFixes",
 	author = "Vauff + xen",
 	description = "Various fixes for CS:GO",
-	version = "1.3",
+	version = "2.0",
 	url = "https://github.com/Vauff/CSGOFixes"
 };
 
 #define FSOLID_TRIGGER 0x0008
 
-DynamicDetour g_hInputTestActivator, g_hDeactivate, g_hPhysicsTouchTriggers, g_hUpdateOnRemove;
+DynamicDetour g_hInputTestActivator, g_hDeactivate, g_hPhysicsTouchTriggers, g_hUpdateOnRemove, g_hPhysFrictionEffect;
 DynamicHook g_hExplode;
 Handle g_hGameStringPool_Remove;
 
@@ -26,6 +26,7 @@ Address g_aPatchedAddresses[sizeof(g_sPatchNames)];
 int g_iPatchedByteCount[sizeof(g_sPatchNames)];
 int g_iPatchedBytes[sizeof(g_sPatchNames)][128]; // Increase this if a PatchBytes value in gamedata exceeds 128
 int g_iSolidFlags;
+int g_iRecentFrictionParticles;
 
 public void OnPluginStart()
 {
@@ -49,6 +50,7 @@ public void OnPluginStart()
 	SetupDetour(gameData, g_hDeactivate, "CGameUI::Deactivate", Detour_Deactivate, Hook_Pre);
 	SetupDetour(gameData, g_hPhysicsTouchTriggers, "CBaseEntity::PhysicsTouchTriggers", Detour_PhysicsTouchTriggers, Hook_Pre);
 	SetupDetour(gameData, g_hUpdateOnRemove, "CBaseEntity::UpdateOnRemove", Detour_UpdateOnRemove, Hook_Pre);
+	SetupDetour(gameData, g_hPhysFrictionEffect, "PhysFrictionEffect", Detour_PhysFrictionEffect, Hook_Pre);
 
 	g_hExplode = DynamicHook.FromConf(gameData, "CBaseGrenade::Explode");
 	if (!g_hExplode)
@@ -73,6 +75,7 @@ public void OnPluginStart()
 public void OnMapStart()
 {
 	g_iSolidFlags = FindDataMapInfo(0, "m_usSolidFlags");
+	g_iRecentFrictionParticles = 0;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -151,6 +154,26 @@ MRESReturn Detour_UpdateOnRemove(int iEntity)
 		SDKCall(g_hGameStringPool_Remove, szScriptId);
 
 	return MRES_Handled;
+}
+
+MRESReturn Detour_PhysFrictionEffect()
+{
+	// Rate limit the particles PhysFrictionEffect creates, because server chat/command processing can fall very far behind when this function is spammed
+	if (g_iRecentFrictionParticles > 10)
+		return MRES_Supercede;
+
+	g_iRecentFrictionParticles++;
+	CreateTimer(0.1, Timer_DecrementFrictionParticles);
+
+	return MRES_Handled;
+}
+
+Action Timer_DecrementFrictionParticles(Handle timer)
+{
+	if (g_iRecentFrictionParticles > 0)
+		g_iRecentFrictionParticles--;
+
+	return Plugin_Stop;
 }
 
 void SetupDetour(GameData gameData, DynamicDetour detour, char[] name, DHookCallback callback, HookMode mode)
